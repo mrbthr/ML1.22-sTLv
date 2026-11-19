@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 #
-# netdiag - Enterprise Linux Network Diagnostic & Latency Debugging CLI
 # Copyright (c) 2026
 # Lisence MIT
 
@@ -23,7 +22,7 @@ source "${LIB_DIR}/system.sh"
 # shellcheck source=../lib/probes.sh
 source "${LIB_DIR}/probes.sh"
 
-# Default configuration
+
 TARGET="google.com"
 PORT="443"
 COUNT=4
@@ -80,7 +79,7 @@ main() {
     timestamp="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
     hostname_str="$(hostname -f 2>/dev/null || hostname)"
 
-    # Collect System & Kernel Metrics
+    
     local gw_ip gw_iface gw_ping tcp_estab tcp_retrans ip_discards
     gw_ip="$(get_default_gateway)"
     gw_iface="$(get_default_interface)"
@@ -89,7 +88,7 @@ main() {
     tcp_retrans="$(get_snmp_counter "Tcp" "RetransSegs")"
     ip_discards="$(get_snmp_counter "Ip" "InDiscards")"
 
-    # Execute Network Probes
+    
     local dns_res resolved_ip dns_ms
     dns_res="$(probe_dns "$TARGET")"
     resolved_ip="${dns_res%%|*}"
