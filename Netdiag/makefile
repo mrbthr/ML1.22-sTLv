@@ -37,10 +37,10 @@ deb:
 	rm -rf $(BUILD_DIR)
 	mkdir -p $(BUILD_DIR)/DEBIAN $(DIST_DIR)
 
-	# 1. Stage binaries and libraries under /usr (standard distro prefix)
+	
 	$(MAKE) install DESTDIR=$(BUILD_DIR) PREFIX=/usr
 
-	# 2. Stage default config & systemd units if present
+	
 	install -d $(BUILD_DIR)$(ETCDIR)
 	@if [ ! -f $(BUILD_DIR)$(ETCDIR)/netdiag.conf ]; then \
 		printf '# Default netdiag configuration\nTARGET="1.1.1.1"\nPORT="443"\n' > $(BUILD_DIR)$(ETCDIR)/netdiag.conf; \
@@ -51,12 +51,12 @@ deb:
 		install -m 0644 deploy/systemd/*.timer $(BUILD_DIR)$(SYSTEMDDIR)/ 2>/dev/null || true; \
 	fi
 
-	# 3. Stage documentation & copyright
+	
 	install -d $(BUILD_DIR)/usr/share/doc/$(PKG_NAME)
 	install -m 0644 README.md $(BUILD_DIR)/usr/share/doc/$(PKG_NAME)/README.md
 	install -m 0644 LICENSE $(BUILD_DIR)/usr/share/doc/$(PKG_NAME)/copyright
 
-	# 4. Generate DEBIAN/control metadata
+	
 	@INSTALLED_SIZE=$$(du -sk $(BUILD_DIR) | awk '{print $$1}'); \
 	cat > $(BUILD_DIR)/DEBIAN/control <<EOF
 	Package: $(PKG_NAME)
@@ -74,10 +74,10 @@ deb:
 	 and exports Prometheus Node Exporter textfile metrics.
 	EOF
 
-	# 5. Mark configuration files so upgrades preserve user edits
+	
 	echo "$(ETCDIR)/netdiag.conf" > $(BUILD_DIR)/DEBIAN/conffiles
 
-	# 6. Create postinst & prerm maintainer scripts
+	
 	cat > $(BUILD_DIR)/DEBIAN/postinst <<'EOF'
 	#!/bin/sh
 	set -e
@@ -99,9 +99,15 @@ deb:
 
 	chmod 0755 $(BUILD_DIR)/DEBIAN/postinst $(BUILD_DIR)/DEBIAN/prerm
 
-	# 7. Build the .deb archive (root:root ownership)
+	
 	dpkg-deb --build --root-owner-group $(BUILD_DIR) $(DEB_FILE)
 	@echo "Built package: $(DEB_FILE)"
 
 clean:
 	rm -rf build $(DIST_DIR)
+
+.PHONY: all install uninstall lint test deb clean ssh-setup
+
+ssh-setup:
+	./scripts/setup-github-ssh.sh
+
