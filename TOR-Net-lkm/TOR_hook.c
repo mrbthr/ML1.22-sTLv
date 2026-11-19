@@ -17,7 +17,7 @@
 #include <net/sock.h>
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Your Name");
+MODULE_AUTHOR("Marbathara");
 MODULE_DESCRIPTION("Linux Netfilter LKM for Bidirectional Transparent Tor DNAT");
 MODULE_VERSION("0.2");
 
