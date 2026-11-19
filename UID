@@ -1,0 +1,6 @@
+id -u debian-tor
+
+**
+
+make
+sudo insmod tor_hook.ko tor_uid=$(id -u debian-tor)
