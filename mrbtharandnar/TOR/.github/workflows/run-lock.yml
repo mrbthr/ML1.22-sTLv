@@ -1,0 +1,28 @@
+name: Run Lock Script
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Make lock.sh executable
+        run: chmod +x ./scripts/lock.sh
+
+      - name: Run lock.sh
+        run: ./scripts/lock.sh
+        
