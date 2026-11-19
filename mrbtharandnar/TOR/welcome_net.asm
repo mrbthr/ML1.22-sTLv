@@ -22,20 +22,20 @@ _start:
     syscall
     mov r12, rax                        ; Save server socket FD in r12
 
-    ; 2. bind(sockfd, &sockaddr6, 28)
+    ;
     mov rax, 49                         ; syscall: sys_bind
     mov rdi, r12                        ; server socket FD
     mov rsi, sockaddr6                  ; pointer to sockaddr_in6 struct
     mov rdx, 28                         ; struct length (changed from 16 to 28 bytes)
     syscall
 
-    ; 3. listen(sockfd, backlog=5)
+    ;
     mov rax, 50                         ; syscall: sys_listen
     mov rdi, r12                        ; server socket FD
     mov rsi, 5                          ; backlog queue size
     syscall
 
-    ; 4. accept(sockfd, NULL, NULL)
+    ;
     mov rax, 43                         ; syscall: sys_accept
     mov rdi, r12                        ; server socket FD
     xor rsi, rsi                        ; NULL (ignore client addr)
@@ -43,14 +43,14 @@ _start:
     syscall
     mov r13, rax                        ; Save connected client FD in r13
 
-    ; 5. write(client_fd, msg, msg_len)
+    ;
     mov rax, 1                          ; syscall: sys_write
     mov rdi, r13                        ; client socket FD
     mov rsi, msg                        ; message buffer
     mov rdx, msg_len                    ; message length
     syscall
 
-    ; 6. close(client_fd) & close(server_fd)
+    ;
     mov rax, 3                          ; syscall: sys_close
     mov rdi, r13
     syscall
@@ -59,7 +59,7 @@ _start:
     mov rdi, r12
     syscall
 
-    ; 7. exit(0)
+    ;
     mov rax, 60                         ; syscall: sys_exit
     xor rdi, rdi                        ; status 0
     syscall
