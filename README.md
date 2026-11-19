@@ -1,4 +1,4 @@
-# netdiag
+# ML1.22-sTLv
 
 [![CI](https://github.com<your-username>/netdiag/actions/workflows/ci.yml/badge.svg)](https://github.com<your-username>/netdiag/actions/workflows/ci.yml)
 [![License: MIT](https://shields.io)](LICENSE)
