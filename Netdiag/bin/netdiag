@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+#
+# netdiag - Enterprise Linux Network Diagnostic & Latency Debugging CLI
+# Copyright (c) 2026
+# Lisence MIT
+
+set -euo pipefail
+IFS=$'\n\t'
+
+readonly VERSION="2.0.0"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB_DIR="$(cd "${SCRIPT_DIR}/../lib" && pwd)"
+
+# Fallback for system-wide installation (/usr/local/bin -> /usr/local/lib/netdiag)
+if [[ ! -d "$LIB_DIR" && -d "/usr/local/lib/netdiag" ]]; then
+    LIB_DIR="/usr/local/lib/netdiag"
+fi
+
+# shellcheck source=../lib/logger.sh
+source "${LIB_DIR}/logger.sh"
+# shellcheck source=../lib/system.sh
+source "${LIB_DIR}/system.sh"
+# shellcheck source=../lib/probes.sh
+source "${LIB_DIR}/probes.sh"
+
+# Default configuration
+TARGET="google.com"
+PORT="443"
+COUNT=4
+TIMEOUT=3
+JSON_OUTPUT=false
+
+usage() {
+    cat <<EOF
+netdiag v${VERSION} - Linux Network Diagnostic & Latency Debugging CLI
+
+Usage:
+  $(basename "$0") [OPTIONS]
+
+Examples:
+  $(basename "$0") -t 1.1.1.1 -p 443
+  $(basename "$0") --target github.com --json | jq .
+EOF
+}
+
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -t|--target)
+                [[ -z "${2:-}" ]] && die "Option $1 requires an argument."
+                TARGET="$2"; shift 2 ;;
+            -p|--port)
+                [[ ! "${2:-}" =~ ^[0-9]+$ ]] && die "Invalid port: ${2:-}"
+                PORT="$2"; shift 2 ;;
+            -c|--count)
+                [[ ! "${2:-}" =~ ^[0-9]+$ ]] && die "Invalid count: ${2:-}"
+                COUNT="$2"; shift 2 ;;
+            -w|--timeout)
+                [[ ! "${2:-}" =~ ^[0-9]+$ ]] && die "Invalid timeout: ${2:-}"
+                TIMEOUT="$2"; shift 2 ;;
+            -j|--json)
+                JSON_OUTPUT=true; shift ;;
+            -v|--version)
+                echo "netdiag v${VERSION}"; exit 0 ;;
+            -h|--help)
+                usage; exit 0 ;;
+            *)
+                die "Unknown argument: $1. Use --help for usage." ;;
+        esac
+    done
+}
+
+main() {
+    parse_args "$@"
+    init_colors "$JSON_OUTPUT"
+
+    [[ "$(uname -s)" != "Linux" ]] && die "netdiag requires a Linux kernel."
+
+    local timestamp hostname_str
+    timestamp="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+    hostname_str="$(hostname -f 2>/dev/null || hostname)"
+
+    # Collect System & Kernel Metrics
+    local gw_ip gw_iface gw_ping tcp_estab tcp_retrans ip_discards
+    gw_ip="$(get_default_gateway)"
+    gw_iface="$(get_default_interface)"
+    gw_ping="$(probe_gateway_ping "$gw_ip" "$TIMEOUT")"
+    tcp_estab="$(get_tcp_established)"
+    tcp_retrans="$(get_snmp_counter "Tcp" "RetransSegs")"
+    ip_discards="$(get_snmp_counter "Ip" "InDiscards")"
+
+    # Execute Network Probes
+    local dns_res resolved_ip dns_ms
+    dns_res="$(probe_dns "$TARGET")"
+    resolved_ip="${dns_res%%|*}"
+    dns_ms="${dns_res##*|}"
+
+    local icmp_res ping_avg ping_loss
+    icmp_res="$(probe_icmp "$TARGET" "$COUNT" "$TIMEOUT")"
+    ping_avg="${icmp_res%%|*}"
+    ping_loss="${icmp_res##*|}"
+
+    local l4_res tcp_ms tls_ms ttfb_ms http_code
+    l4_res="$(probe_tcp_http "$TARGET" "$PORT" "$TIMEOUT")"
+    IFS='|' read -r tcp_ms tls_ms ttfb_ms http_code <<< "$l4_res"
+
+    # Analyze Anomalies (e.g., 1ms false ping / VPN / DNS hijack)
+    local warnings
+    warnings="$(detect_anomalies "$TARGET" "$resolved_ip" "$ping_avg")"
+
+    if [[ "$JSON_OUTPUT" == true ]]; then
+        render_json \
+            "$timestamp" "$hostname_str" "$TARGET" "$PORT" \
+            "$gw_iface" "$gw_ip" "$gw_ping" \
+            "$tcp_estab" "$tcp_retrans" "$ip_discards" \
+            "$resolved_ip" "$dns_ms" "$ping_avg" "$ping_loss" \
+            "$tcp_ms" "$tls_ms" "$ttfb_ms" "$http_code" "$warnings"
+    else
+        render_report \
+            "$timestamp" "$hostname_str" "$TARGET" "$PORT" \
+            "$gw_iface" "$gw_ip" "$gw_ping" \
+            "$tcp_estab" "$tcp_retrans" "$ip_discards" \
+            "$resolved_ip" "$dns_ms" "$ping_avg" "$ping_loss" \
+            "$tcp_ms" "$tls_ms" "$ttfb_ms" "$http_code" "$warnings"
+    fi
+}
+
+main "$@"
